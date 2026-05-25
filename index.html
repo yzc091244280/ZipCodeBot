@@ -6,6 +6,7 @@
 <title>邮编查询</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#f5f6fa;--card:#fff;--primary:#4f46e5;--primary-soft:#eef2ff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;--ok:#16a34a;--warn:#d97706;--err:#dc2626}
@@ -29,6 +30,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-primary{background:var(--primary);color:#fff}
 .btn-primary:active{background:#4338ca;transform:scale(.98)}
 
+.btn-sm{padding:10px 16px;font-size:13px;border-radius:10px;font-weight:600}
+.btn-outline{background:#fff;border:1.5px solid var(--line);color:var(--muted)}
+.btn-outline:active{background:#f8fafc}
+.btn-danger{background:#fff;border:1.5px solid #fecaca;color:var(--err)}
+.btn-danger:active{background:#fef2f2}
+
 /* Results */
 .zone-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
 .zone-ok{background:#dcfce7;color:#166534}
@@ -39,7 +46,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
 .info-row:last-child{border:none}
 .info-label{color:var(--muted);font-size:13px}
-.info-value{font-weight:600;text-align:right;max-width:60%;text-align:right}
+.info-value{font-weight:600;text-align:right;max-width:60%}
 
 .best-card{padding:14px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;margin:8px 0}
 .best-label{font-size:11px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.04em}
@@ -71,7 +78,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .port-table tr:last-child td{border:none}
 .port-table tr.is-best td{background:#ecfdf5}
 
-/* Batch result rows */
 .batch-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #f1f5f9;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .batch-row:last-child{border:none}
 .batch-row:active{background:#f8fafc}
@@ -86,11 +92,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .result-title{font-size:14px;font-weight:700;padding:8px 0 6px;display:flex;align-items:center;gap:8px}
 .result-title .icon{font-size:16px}
 
-.copy-btn{padding:6px 12px;font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;color:var(--muted);transition:all .15s}
-.copy-btn:active{background:#f1f5f9}
-.copy-btn.copied{color:var(--ok);border-color:var(--ok)}
-
 .section-label{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;padding:4px 0}
+
+/* Upload section */
+.data-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f8fafc;border-radius:10px;font-size:12px;color:var(--muted);margin-bottom:10px}
+.data-bar .fname{font-weight:700;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.data-bar .tag{padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.tag-default{background:#eef2ff;color:#4f46e5}
+.tag-custom{background:#dcfce7;color:#166534}
+
+.upload-area{border:2px dashed var(--line);border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.upload-area:active{border-color:var(--primary);background:var(--primary-soft)}
+.upload-icon{font-size:28px;margin-bottom:6px}
+.upload-text{font-size:14px;font-weight:600;color:var(--text)}
+.upload-hint{font-size:12px;color:var(--muted);margin-top:4px}
+
+.parse-ok{padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:13px;color:#166534}
+.parse-err{padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;color:#991b1b}
 </style>
 </head>
 <body>
@@ -101,6 +119,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <div class="main">
   <div class="card">
+    <div id="data-bar" class="data-bar" style="display:none">
+      <span class="tag tag-default" id="data-tag">默认</span>
+      <span class="fname" id="data-fname">内置数据</span>
+    </div>
     <div class="input-group">
       <label>发货邮编</label>
       <textarea id="origin" inputmode="numeric" placeholder="如 90058（多个用空格/逗号/换行分隔）" rows="1" autocomplete="off"></textarea>
@@ -109,7 +131,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <label>收货邮编</label>
       <textarea id="dest" inputmode="numeric" placeholder="如 10001（多个用空格/逗号/换行分隔）" rows="2" autocomplete="off"></textarea>
     </div>
-    <button class="btn btn-primary" onclick="doLookup()" id="queryBtn">查询</button>
+    <button class="btn btn-primary" onclick="doLookup()">查询</button>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-size:13px;font-weight:700;color:var(--text)">报价表数据</span>
+      <button class="btn btn-sm btn-danger" id="restore-btn" onclick="restoreDefault()" style="display:none">恢复默认</button>
+    </div>
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">+</div>
+      <div class="upload-text">上传报价表 Excel</div>
+      <div class="upload-hint">支持 .xlsx / .xls，点击选择文件</div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls" style="display:none" onchange="handleFile(this)">
+    <div id="parse-status" style="margin-top:10px"></div>
   </div>
 
   <div id="loading" class="loading">
@@ -122,20 +158,444 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <script src="data.js"></script>
 <script>
+var DEFAULT_ZIP_DATA = null;
+var ZIP_DATA = null;
 var locCache = {};
 var US_STATES_CN = {
   'AL':'阿拉巴马','AK':'阿拉斯加','AZ':'亚利桑那','AR':'阿肯色','CA':'加利福尼亚','CO':'科罗拉多','CT':'康涅狄格','DE':'特拉华','FL':'佛罗里达','GA':'佐治亚','HI':'夏威夷','ID':'爱达荷','IL':'伊利诺伊','IN':'印第安纳','IA':'爱荷华','KS':'堪萨斯','KY':'肯塔基','LA':'路易斯安那','ME':'缅因','MD':'马里兰','MA':'马萨诸塞','MI':'密歇根','MN':'明尼苏达','MS':'密西西比','MO':'密苏里','MT':'蒙大拿','NE':'内布拉斯加','NV':'内华达','NH':'新罕布什尔','NJ':'新泽西','NM':'新墨西哥','NY':'纽约','NC':'北卡罗来纳','ND':'北达科他','OH':'俄亥俄','OK':'俄克拉荷马','OR':'俄勒冈','PA':'宾夕法尼亚','RI':'罗德岛','SC':'南卡罗来纳','SD':'南达科他','TN':'田纳西','TX':'得克萨斯','UT':'犹他','VT':'佛蒙特','VA':'弗吉尼亚','WA':'华盛顿','WV':'西弗吉尼亚','WI':'威斯康星','WY':'怀俄明','DC':'华盛顿特区','PR':'波多黎各'
 };
 
+// ── Init: load from localStorage or use default ──
+(function() {
+  DEFAULT_ZIP_DATA = JSON.parse(JSON.stringify(ZIP_DATA));
+  var saved = localStorage.getItem('zipbot_data');
+  if (saved) {
+    try {
+      var obj = JSON.parse(saved);
+      if (obj && obj.pz && obj.dz3) {
+        ZIP_DATA = obj;
+        updateDataBar(localStorage.getItem('zipbot_name') || '上传的文件', true);
+        document.getElementById('restore-btn').style.display = '';
+        return;
+      }
+    } catch(e) {}
+  }
+  updateDataBar('内置数据', false);
+})();
+
+function updateDataBar(name, isCustom) {
+  var bar = document.getElementById('data-bar');
+  var fname = document.getElementById('data-fname');
+  var tag = document.getElementById('data-tag');
+  bar.style.display = 'flex';
+  fname.textContent = name;
+  if (isCustom) {
+    tag.className = 'tag tag-custom';
+    tag.textContent = '自定义';
+  } else {
+    tag.className = 'tag tag-default';
+    tag.textContent = '默认';
+  }
+}
+
+function restoreDefault() {
+  ZIP_DATA = JSON.parse(JSON.stringify(DEFAULT_ZIP_DATA));
+  localStorage.removeItem('zipbot_data');
+  localStorage.removeItem('zipbot_name');
+  updateDataBar('内置数据', false);
+  document.getElementById('restore-btn').style.display = 'none';
+  document.getElementById('parse-status').innerHTML = '';
+  document.getElementById('file-input').value = '';
+}
+
+// ── File upload & parsing ──
+function handleFile(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var status = document.getElementById('parse-status');
+  status.innerHTML = '<div class="parse-ok" style="background:#f8fafc;border-color:var(--line);color:var(--muted)">正在解析 ' + file.name + '...</div>';
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = new Uint8Array(e.target.result);
+      var wb = XLSX.read(data, { type: 'array' });
+      var parsed = parseZipLookupTables(wb);
+
+      // Build compact format
+      var compact = null;
+      for (var prod in parsed) {
+        compact = buildCompactData(parsed[prod]);
+        break;
+      }
+
+      if (!compact || (!compact.pz || Object.keys(compact.pz).length === 0) && (!compact.dz3 || Object.keys(compact.dz3).length === 0)) {
+        status.innerHTML = '<div class="parse-err">未在文件中找到邮编表数据。请确认文件包含名称含"邮编"或"zipcode"的 Sheet。</div>';
+        return;
+      }
+
+      var pickupCount = 0;
+      for (var g in compact.pz) pickupCount += compact.pz[g].length;
+      var destCount = Object.keys(compact.dz3).length;
+
+      ZIP_DATA = compact;
+      try {
+        localStorage.setItem('zipbot_data', JSON.stringify(compact));
+        localStorage.setItem('zipbot_name', file.name);
+      } catch(e) {}
+
+      updateDataBar(file.name, true);
+      document.getElementById('restore-btn').style.display = '';
+
+      status.innerHTML = '<div class="parse-ok">解析成功！揽收邮编 <b>' + pickupCount + '</b> 条，分区邮编 <b>' + destCount + '</b> 个前缀组</div>';
+    } catch(err) {
+      status.innerHTML = '<div class="parse-err">解析失败：' + err.message + '</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function buildCompactData(raw) {
+  var pickup = raw.pickup_zip_to_gate || {};
+  var dest = raw.dest_zip_to_zones || {};
+  var ports = raw.dest_ports || [];
+
+  var gateZips = {};
+  for (var z in pickup) {
+    var g = pickup[z];
+    if (!gateZips[g]) gateZips[g] = [];
+    gateZips[g].push(z);
+  }
+
+  var prefixZones = {};
+  for (var z in dest) {
+    var p3 = z.substring(0, 3);
+    if (!prefixZones[p3]) prefixZones[p3] = dest[z];
+  }
+
+  var exceptions = {};
+  for (var z in dest) {
+    var p3 = z.substring(0, 3);
+    if (JSON.stringify(prefixZones[p3]) !== JSON.stringify(dest[z])) {
+      exceptions[z] = dest[z];
+    }
+  }
+
+  return { p: ports, pz: gateZips, dz3: prefixZones, dx: exceptions };
+}
+
+// ── Excel parsing (translated from recon_core.py) ──
+var KNOWN_PORTS = ['LAX','DFW','IAH','ORD','ATL','SAV','CLT','MIA','JFK','SFO','CVG','SEA','EWR'];
+var KNOWN_PORTS_SET = {};
+KNOWN_PORTS.forEach(function(p) { KNOWN_PORTS_SET[p] = true; });
+
+function safeText(v) {
+  if (v === null || v === undefined) return '';
+  var s = String(v).trim();
+  if (s === 'undefined' || s === 'null') return '';
+  return s;
+}
+
+function normalizeZip(v) {
+  var text = safeText(v);
+  if (!text) return '';
+  if (/^\d+(\.(0+))?$/.test(text)) text = text.split('.')[0];
+  var m = text.match(/\d{5}/);
+  if (m) return m[0];
+  if (/^\d{1,4}$/.test(text)) return text.padStart(5, '0');
+  return '';
+}
+
+function looksLikeZipRuleSheet(name) {
+  var t = safeText(name).toLowerCase();
+  return ['邮编','zipcode','zip code','揽收','pickup'].some(function(k) { return t.indexOf(k) !== -1; });
+}
+
+function parseZipLookupTables(wb) {
+  var result = {};
+  wb.SheetNames.forEach(function(name) {
+    if (!looksLikeZipRuleSheet(name)) return;
+    var ws = wb.Sheets[name];
+    var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (rows.length < 4) return;
+
+    var text = safeText(name).toLowerCase();
+    var productKey = '';
+    if (text.indexOf('swiftx') !== -1 || text.indexOf('swift') !== -1) productKey = 'swiftx';
+    else if (['us','parcel','商派','小包'].some(function(k) { return text.indexOf(k) !== -1; })) productKey = 'us_parcel';
+
+    if (productKey === 'us_parcel') {
+      parseUsParcelZipSheet(rows, result);
+    } else if (productKey === 'swiftx') {
+      parseSwiftxZipSheet(rows, result);
+    } else {
+      var before = Object.keys(result).join(',');
+      parseUsParcelZipSheet(rows, result);
+      if (Object.keys(result).join(',') === before) parseSwiftxZipSheet(rows, result);
+    }
+  });
+  return result;
+}
+
+function parseUsParcelZipSheet(rows, result) {
+  var upperRows = rows.slice(0, 5).map(function(row) { return row.map(function(v) { return safeText(v).toUpperCase(); }); });
+  var flat = [];
+  upperRows.forEach(function(r) { r.forEach(function(v) { if (v) flat.push(v); }); });
+  if (flat.some(function(v) { return v.indexOf('目的地邮编') !== -1; })) {
+    parseUsParcelCnZipSheet(rows, result);
+    return;
+  }
+
+  var headerRowIdx = null, portRowIdx = null;
+  for (var idx = 0; idx < Math.min(6, rows.length); idx++) {
+    var vals = rows[idx].map(function(v) { return safeText(v).toUpperCase(); });
+    var portCount = vals.filter(function(v) { return KNOWN_PORTS_SET[v]; }).length;
+    if (portCount >= 3 && portRowIdx === null) portRowIdx = idx;
+    var joined = vals.join(' ');
+    if (['GATE','REGION','区域','注入口岸'].some(function(k) { return joined.indexOf(k) !== -1; })) {
+      if (headerRowIdx === null) headerRowIdx = idx;
+    }
+  }
+
+  var pickupGateCol = 1, pickupZipCol = 2, destZipCol = 7, dataStart = 3;
+
+  if (headerRowIdx !== null) {
+    var hVals = rows[headerRowIdx].map(function(v) { return safeText(v).toUpperCase(); });
+    for (var i = 0; i < hVals.length; i++) {
+      if (['GATE','REGION','区域','注入口岸','PORT'].indexOf(hVals[i]) !== -1) { pickupGateCol = i; break; }
+    }
+    for (var i = pickupGateCol + 1; i < hVals.length; i++) {
+      var raw = safeText(rows[headerRowIdx][i]);
+      if (hVals[i].indexOf('ZIP') !== -1 || raw.indexOf('邮编') !== -1) { pickupZipCol = i; break; }
+    }
+    for (var i = 0; i < hVals.length; i++) {
+      if (i === pickupZipCol) continue;
+      var raw = safeText(rows[headerRowIdx][i]);
+      var hasDest = ['DEST','DESTINATION','收件','目的地'].some(function(k) { return hVals[i].indexOf(k) !== -1; });
+      var hasZip = hVals[i].indexOf('ZIP') !== -1 || raw.indexOf('邮编') !== -1;
+      if ((hasDest && hasZip) || hasDest || raw.indexOf('收件邮编') !== -1) { destZipCol = i; break; }
+    }
+  }
+
+  var portColMap = [], destPorts = [];
+  if (portRowIdx !== null) {
+    var portVals = rows[portRowIdx].map(function(v) { return safeText(v).toUpperCase(); });
+    for (var i = 0; i < portVals.length; i++) {
+      if (KNOWN_PORTS_SET[portVals[i]]) portColMap.push([i, portVals[i]]);
+    }
+    destPorts = portColMap.map(function(x) { return x[1]; });
+    dataStart = Math.max(portRowIdx, headerRowIdx || 0) + 1;
+  } else {
+    if (rows.length > 2) {
+      for (var i = 8; i < rows[2].length; i++) {
+        var val = safeText(rows[2][i]).toUpperCase();
+        if (val && val.length === 3 && /^[A-Z]+$/.test(val)) {
+          destPorts.push(val);
+          portColMap.push([i, val]);
+        }
+      }
+    }
+    dataStart = 3;
+  }
+
+  var pickupZipToGate = {}, destZipToZones = {};
+
+  for (var r = dataStart; r < rows.length; r++) {
+    var vals = rows[r];
+    if (!vals) continue;
+
+    if (pickupZipCol < vals.length && vals[pickupZipCol] != null && vals[pickupZipCol] !== '') {
+      var zip = normalizeZip(vals[pickupZipCol]);
+      var gate = pickupGateCol < vals.length ? safeText(vals[pickupGateCol]).toUpperCase() : '';
+      if (zip && gate) pickupZipToGate[zip] = gate;
+    }
+
+    if (destZipCol < vals.length && vals[destZipCol] != null && vals[destZipCol] !== '') {
+      var destZip = normalizeZip(vals[destZipCol]);
+      if (destZip && portColMap.length) {
+        var zones = {};
+        for (var pi = 0; pi < portColMap.length; pi++) {
+          var colIdx = portColMap[pi][0], portName = portColMap[pi][1];
+          if (colIdx < vals.length && vals[colIdx] != null && vals[colIdx] !== '') {
+            var zoneVal = safeText(vals[colIdx]);
+            if (zoneVal) zones[portName] = zoneVal;
+          }
+        }
+        if (Object.keys(zones).length) destZipToZones[destZip] = zones;
+      }
+    }
+  }
+
+  if (Object.keys(pickupZipToGate).length || Object.keys(destZipToZones).length) {
+    result['us_parcel'] = { pickup_zip_to_gate: pickupZipToGate, dest_zip_to_zones: destZipToZones, dest_ports: destPorts };
+  }
+}
+
+function parseUsParcelCnZipSheet(rows, result) {
+  var headerRowIdx = null, subheaderRowIdx = null;
+  for (var idx = 0; idx < Math.min(10, rows.length); idx++) {
+    var values = rows[idx].map(function(v) { return safeText(v); });
+    var hasDest = values.some(function(v) { return v.indexOf('目的地邮编') !== -1; });
+    var hasRegion = values.some(function(v) { return v.indexOf('区域') !== -1; });
+    var hasZip = values.some(function(v) { return v.indexOf('邮编') !== -1; });
+    if (hasDest && hasRegion && hasZip) {
+      headerRowIdx = idx;
+      if (idx + 1 < rows.length) subheaderRowIdx = idx + 1;
+      break;
+    }
+  }
+  if (headerRowIdx === null || subheaderRowIdx === null) return;
+
+  var header = rows[headerRowIdx].map(function(v) { return safeText(v); });
+  var subheader = rows[subheaderRowIdx].map(function(v) { return safeText(v).toUpperCase(); });
+
+  var destZipCol = header.indexOf('目的地邮编');
+  var pickupGateCol = header.indexOf('区域');
+  var pickupZipCol = null;
+  if (pickupGateCol !== -1) {
+    for (var i = pickupGateCol + 1; i < header.length; i++) {
+      if (header[i] === '邮编') { pickupZipCol = i; break; }
+    }
+  }
+
+  var portColMap = [];
+  for (var i = 0; i < subheader.length; i++) {
+    if (subheader[i].length === 3 && /^[A-Z]+$/.test(subheader[i])) portColMap.push([i, subheader[i]]);
+  }
+  var destPorts = portColMap.map(function(x) { return x[1]; });
+
+  var pickupZipToGate = {}, destZipToZones = {};
+
+  for (var r = subheaderRowIdx + 1; r < rows.length; r++) {
+    var vals = rows[r];
+    if (!vals) continue;
+
+    if (destZipCol !== -1 && destZipCol < vals.length) {
+      var destZip = normalizeZip(vals[destZipCol]);
+      if (destZip && portColMap.length) {
+        var zones = {};
+        for (var pi = 0; pi < portColMap.length; pi++) {
+          var colIdx = portColMap[pi][0], portName = portColMap[pi][1];
+          if (colIdx < vals.length && vals[colIdx] != null && vals[colIdx] !== '') {
+            var zv = safeText(vals[colIdx]);
+            if (zv) zones[portName] = /^\d+$/.test(zv) ? 'Zone ' + zv : zv;
+          }
+        }
+        if (Object.keys(zones).length) destZipToZones[destZip] = zones;
+      }
+    }
+
+    if (pickupGateCol !== -1 && pickupZipCol !== null && pickupZipCol < vals.length) {
+      var pzip = normalizeZip(vals[pickupZipCol]);
+      var pgate = safeText(vals[pickupGateCol]).toUpperCase();
+      if (pzip && pgate) pickupZipToGate[pzip] = pgate;
+    }
+  }
+
+  if (Object.keys(pickupZipToGate).length || Object.keys(destZipToZones).length) {
+    result['us_parcel'] = { pickup_zip_to_gate: pickupZipToGate, dest_zip_to_zones: destZipToZones, dest_ports: destPorts };
+  }
+}
+
+function parseSwiftxZipSheet(rows, result) {
+  if (rows.length < 3) return;
+
+  var headerRowIdx = null;
+  var destZipCol = 1, pickupZipCol = 13, pickupGateCol = 14, dataStart = 2;
+
+  for (var idx = 0; idx < Math.min(5, rows.length); idx++) {
+    var vals = rows[idx].map(function(v) { return safeText(v).toUpperCase(); });
+    var nonEmpty = vals.filter(function(v) { return v; });
+    if (nonEmpty.length >= 4 && vals.some(function(v) { return v.indexOf('ZIP') !== -1; })) {
+      headerRowIdx = idx;
+      break;
+    }
+  }
+
+  if (headerRowIdx !== null) {
+    var hRaw = rows[headerRowIdx].map(function(v) { return safeText(v); });
+    var hUpper = hRaw.map(function(v) { return v.toUpperCase().trim(); });
+
+    for (var i = 0; i < hUpper.length; i++) {
+      var raw = hRaw[i];
+      var isPickup = ['揽收','pickup','Pickup'].some(function(k) { return raw.indexOf(k) !== -1; });
+      if (!isPickup && (hUpper[i].indexOf('ZIP CODE') !== -1 || hUpper[i].indexOf('ZIPCODE') !== -1 || hUpper[i] === 'ZIP' || raw.indexOf('邮编') !== -1)) {
+        destZipCol = i;
+        if (['收件','dest','Dest','DEST'].some(function(k) { return raw.indexOf(k) !== -1; })) break;
+      }
+    }
+
+    for (var i = 0; i < hUpper.length; i++) {
+      var raw = hRaw[i];
+      if (['揽收','PICKUP','Pickup'].some(function(k) { return raw.indexOf(k) !== -1; }) && (hUpper[i].indexOf('ZIP') !== -1 || raw.indexOf('邮编') !== -1)) {
+        pickupZipCol = i; break;
+      }
+    }
+
+    var gateCols = [];
+    for (var i = 0; i < hUpper.length; i++) {
+      if (['GATE','REGION','区域','注入口岸','口岸'].indexOf(hUpper[i]) !== -1) gateCols.push(i);
+    }
+    if (gateCols.length) pickupGateCol = gateCols.reduce(function(a, b) { return Math.abs(a - pickupZipCol) <= Math.abs(b - pickupZipCol) ? a : b; });
+
+    dataStart = headerRowIdx + 1;
+  }
+
+  var scanRow = headerRowIdx !== null
+    ? rows[headerRowIdx].map(function(v) { return safeText(v).toUpperCase().trim(); })
+    : (rows.length > 1 ? rows[1].map(function(v) { return safeText(v).toUpperCase().trim(); }) : []);
+
+  var portColMap = [];
+  for (var i = 0; i < scanRow.length; i++) {
+    var h = scanRow[i];
+    if (KNOWN_PORTS_SET[h] && i !== destZipCol) { portColMap.push([i, h]); }
+    else if (h.length === 3 && /^[A-Z]+$/.test(h) && ['THE','ZIP','SEQ','NUM'].indexOf(h) === -1 && i > destZipCol) {
+      portColMap.push([i, h]);
+    }
+  }
+  portColMap.sort(function(a, b) { return a[0] - b[0]; });
+
+  var pickupZipToGate = {}, destZipToZones = {};
+
+  for (var r = dataStart; r < rows.length; r++) {
+    var vals = rows[r];
+    if (!vals) continue;
+
+    if (destZipCol < vals.length && vals[destZipCol] != null && vals[destZipCol] !== '') {
+      var destZip = normalizeZip(vals[destZipCol]);
+      if (destZip && portColMap.length) {
+        var zones = {};
+        for (var pi = 0; pi < portColMap.length; pi++) {
+          var colIdx = portColMap[pi][0], portName = portColMap[pi][1];
+          if (colIdx < vals.length && vals[colIdx] != null && vals[colIdx] !== '') {
+            var zv = safeText(vals[colIdx]);
+            if (zv) zones[portName] = zv;
+          }
+        }
+        if (Object.keys(zones).length) destZipToZones[destZip] = zones;
+      }
+    }
+
+    if (pickupGateCol < vals.length && pickupZipCol < vals.length && vals[pickupZipCol] != null && vals[pickupZipCol] !== '') {
+      var pzip = normalizeZip(vals[pickupZipCol]);
+      var pgate = safeText(vals[pickupGateCol]).toUpperCase();
+      if (pzip && pgate) pickupZipToGate[pzip] = pgate;
+    }
+  }
+
+  if (Object.keys(pickupZipToGate).length || Object.keys(destZipToZones).length) {
+    result['swiftx'] = { pickup_zip_to_gate: pickupZipToGate, dest_zip_to_zones: destZipToZones, dest_ports: portColMap.map(function(x) { return x[1]; }) };
+  }
+}
+
+// ── Query logic (unchanged) ──
 function parseZips(text) {
   return text.replace(/[,\n\r;，、]/g, ' ').split(/\s+/).filter(function(z) { return z && /^\d{3,5}$/.test(z); });
 }
 
 function findGate(zip) {
   var pz = ZIP_DATA.pz;
-  for (var gate in pz) {
-    if (pz[gate].indexOf(zip) !== -1) return gate;
-  }
+  for (var gate in pz) { if (pz[gate].indexOf(zip) !== -1) return gate; }
   return null;
 }
 
@@ -146,14 +606,13 @@ function findDestZones(zip) {
   return null;
 }
 
-function parseZones(zones) {
+function parseZoneList(zones) {
   if (!zones) return [];
   var result = [];
   for (var port in zones) {
     var z = zones[port];
     if (z && z !== '-') {
-      var num = parseInt(z.replace('Zone ', ''));
-      result.push({ port: port, zone: z, num: num });
+      result.push({ port: port, zone: z, num: parseInt(z.replace('Zone ', '')) || 99 });
     }
   }
   result.sort(function(a, b) { return a.num - b.num; });
@@ -176,17 +635,12 @@ async function lookupLocation(zip) {
 }
 
 function badge(text, cls) { return '<span class="zone-badge ' + cls + '">' + text + '</span>'; }
-
-function toggleDetail(id) {
-  var el = document.getElementById(id);
-  if (el) el.classList.toggle('open');
-}
+function toggleDetail(id) { var el = document.getElementById(id); if (el) el.classList.toggle('open'); }
+function locText(loc) { return loc ? (loc.city + ', ' + loc.state + (loc.stateCn ? ' (' + loc.stateCn + ')' : '')) : '-'; }
 
 async function doLookup() {
-  var originText = document.getElementById('origin').value.trim();
-  var destText = document.getElementById('dest').value.trim();
-  var origins = parseZips(originText);
-  var dests = parseZips(destText);
+  var origins = parseZips(document.getElementById('origin').value.trim());
+  var dests = parseZips(document.getElementById('dest').value.trim());
   if (!origins.length && !dests.length) return;
 
   var results = document.getElementById('results');
@@ -196,36 +650,16 @@ async function doLookup() {
 
   try {
     var html = '';
-    var hasOrigin = origins.length > 0;
-    var hasDest = dests.length > 0;
-
-    if (hasOrigin && hasDest) {
-      // Route mode: each origin -> each dest
-      html += await renderRoutes(origins, dests);
-    } else if (hasOrigin) {
-      html += await renderOrigins(origins);
-    } else {
-      html += await renderDests(dests);
-    }
-
+    if (origins.length && dests.length) html += await renderRoutes(origins, dests);
+    else if (origins.length) html += await renderOrigins(origins);
+    else html += await renderDests(dests);
     results.innerHTML = html;
-  } finally {
-    loading.classList.remove('show');
-  }
+  } finally { loading.classList.remove('show'); }
 }
 
-function locText(loc) {
-  if (!loc) return '-';
-  var t = loc.city + ', ' + loc.state;
-  if (loc.stateCn) t += ' (' + loc.stateCn + ')';
-  return t;
-}
-
-// ── Origin only ──
 async function renderOrigins(zips) {
   var locs = await Promise.all(zips.map(function(z) { return lookupLocation(z); }));
   var h = '<div class="card"><div class="result-title">发货邮编查询</div>';
-
   if (zips.length === 1) {
     var zip = zips[0], loc = locs[0], gate = findGate(zip);
     h += '<div class="info-row"><span class="info-label">邮编</span><span class="info-value">' + zip + '</span></div>';
@@ -233,24 +667,16 @@ async function renderOrigins(zips) {
     h += '<div class="info-row"><span class="info-label">注入口岸</span><span class="info-value">' + (gate ? badge(gate, 'zone-port') : '<span style="color:var(--warn)">未匹配</span>') + '</span></div>';
     h += '<div class="info-row"><span class="info-label">揽收范围</span><span class="info-value">' + (gate ? badge('在揽收范围内', 'zone-ok') : badge('需确认', 'zone-warn')) + '</span></div>';
     if (!gate) {
-      var zones = findDestZones(zip);
-      var parsed = parseZones(zones);
+      var parsed = parseZoneList(findDestZones(zip));
       if (parsed.length) {
-        h += '<div style="margin-top:10px;padding:10px;background:#fefce8;border-radius:8px;font-size:13px">';
-        h += '<div style="font-weight:700;color:#92400e">按邮编前3位估算</div>';
-        h += '<div style="margin-top:4px;color:#78350f">该区域距 <b>' + parsed[0].port + '</b> 口岸最近（' + parsed[0].zone + '）</div></div>';
+        h += '<div style="margin-top:10px;padding:10px;background:#fefce8;border-radius:8px;font-size:13px"><div style="font-weight:700;color:#92400e">按邮编前3位估算</div><div style="margin-top:4px;color:#78350f">该区域距 <b>' + parsed[0].port + '</b> 口岸最近（' + parsed[0].zone + '）</div></div>';
       }
     }
   } else {
     h += '<table class="port-table"><thead><tr><th>邮编</th><th>位置</th><th>口岸</th><th>状态</th></tr></thead><tbody>';
     for (var i = 0; i < zips.length; i++) {
-      var zip = zips[i], loc = locs[i], gate = findGate(zip);
-      h += '<tr>';
-      h += '<td style="font-weight:800">' + zip + '</td>';
-      h += '<td style="font-size:12px">' + (loc ? loc.city + ', ' + loc.state : '-') + '</td>';
-      h += '<td>' + (gate ? badge(gate, 'zone-port') : '-') + '</td>';
-      h += '<td>' + (gate ? badge('OK', 'zone-ok') : badge('?', 'zone-warn')) + '</td>';
-      h += '</tr>';
+      var gate = findGate(zips[i]);
+      h += '<tr><td style="font-weight:800">' + zips[i] + '</td><td style="font-size:12px">' + (locs[i] ? locs[i].city + ', ' + locs[i].state : '-') + '</td><td>' + (gate ? badge(gate, 'zone-port') : '-') + '</td><td>' + (gate ? badge('OK', 'zone-ok') : badge('?', 'zone-warn')) + '</td></tr>';
     }
     h += '</tbody></table>';
   }
@@ -258,51 +684,21 @@ async function renderOrigins(zips) {
   return h;
 }
 
-// ── Dest only (batch) ──
 async function renderDests(zips) {
   var locs = await Promise.all(zips.map(function(z) { return lookupLocation(z); }));
   var h = '<div class="card"><div class="result-title">收货邮编查询</div>';
-
   for (var i = 0; i < zips.length; i++) {
-    var zip = zips[i], loc = locs[i];
-    var zones = findDestZones(zip);
-    var parsed = parseZones(zones);
-    var best = parsed.length ? parsed[0] : null;
-    var uid = 'bd-' + i;
-
+    var zip = zips[i], loc = locs[i], parsed = parseZoneList(findDestZones(zip)), best = parsed.length ? parsed[0] : null, uid = 'bd-' + i;
     h += '<div class="batch-row" onclick="toggleDetail(\'' + uid + '\')">';
-    h += '<span class="batch-zip">' + zip + '</span>';
-    h += '<div class="batch-info">';
-    h += '<div class="batch-city">' + (loc ? loc.city + ', ' + loc.state + (loc.stateCn ? ' (' + loc.stateCn + ')' : '') : '-') + '</div>';
-    if (best) {
-      h += '<div class="batch-best"><span class="zone-badge zone-port" style="font-size:11px">' + best.port + '</span> <span class="batch-zone" style="color:var(--ok)">' + best.zone + '</span></div>';
-    } else {
-      h += '<div class="batch-best" style="color:var(--muted)">未找到分区数据</div>';
-    }
-    h += '</div>';
-    if (parsed.length > 1) {
-      h += '<span style="color:#cbd5e1;font-size:12px">&#9662;</span>';
-    }
-    h += '</div>';
-
-    // Expandable detail
+    h += '<span class="batch-zip">' + zip + '</span><div class="batch-info">';
+    h += '<div class="batch-city">' + locText(loc) + '</div>';
+    h += best ? '<div class="batch-best"><span class="zone-badge zone-port" style="font-size:11px">' + best.port + '</span> <span class="batch-zone" style="color:var(--ok)">' + best.zone + '</span></div>' : '<div class="batch-best" style="color:var(--muted)">未找到分区数据</div>';
+    h += '</div>' + (parsed.length > 1 ? '<span style="color:#cbd5e1;font-size:12px">&#9662;</span>' : '') + '</div>';
     h += '<div class="batch-detail" id="' + uid + '">';
-    if (best) {
-      h += '<div class="best-card" style="margin:0 0 8px">';
-      h += '<div class="best-label">推荐发货口岸</div>';
-      h += '<div class="best-value">' + best.port + '</div>';
-      h += '<div class="best-note">从 ' + best.port + ' 发货是 ' + best.zone + '，Zone 最低</div></div>';
-    }
+    if (best) h += '<div class="best-card" style="margin:0 0 8px"><div class="best-label">推荐发货口岸</div><div class="best-value">' + best.port + '</div><div class="best-note">从 ' + best.port + ' 发货是 ' + best.zone + '，Zone 最低</div></div>';
     if (parsed.length > 1) {
       h += '<table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th></th></tr></thead><tbody>';
-      for (var j = 0; j < parsed.length; j++) {
-        var p = parsed[j];
-        var isBest = (j === 0);
-        h += '<tr' + (isBest ? ' class="is-best"' : '') + '>';
-        h += '<td><b>' + p.port + '</b>' + (isBest ? ' ' + badge('推荐', 'zone-ok') : '') + '</td>';
-        h += '<td>' + p.zone + '</td>';
-        h += '<td style="font-size:12px;color:var(--muted)">' + (isBest ? '推荐' : '可发') + '</td></tr>';
-      }
+      for (var j = 0; j < parsed.length; j++) { var p = parsed[j], isB = j === 0; h += '<tr' + (isB ? ' class="is-best"' : '') + '><td><b>' + p.port + '</b>' + (isB ? ' ' + badge('推荐', 'zone-ok') : '') + '</td><td>' + p.zone + '</td><td style="font-size:12px;color:var(--muted)">' + (isB ? '推荐' : '可发') + '</td></tr>'; }
       h += '</tbody></table>';
     }
     h += '</div>';
@@ -311,86 +707,27 @@ async function renderDests(zips) {
   return h;
 }
 
-// ── Route mode (origin + dest) ──
 async function renderRoutes(origins, dests) {
   var originLocs = await Promise.all(origins.map(function(z) { return lookupLocation(z); }));
-  var h = '';
-
-  // Precompute gates for origins
   var originGates = origins.map(function(z) { return findGate(z); });
+  if (origins.length === 1 && dests.length === 1) return renderSingleRoute(origins[0], dests[0], originGates[0], originLocs[0]);
 
-  if (origins.length === 1 && dests.length === 1) {
-    // Single route - detailed view
-    return renderSingleRoute(origins[0], dests[0], originGates[0], originLocs[0]);
-  }
-
-  // Multi route - compact view
-  h += '<div class="card"><div class="result-title">线路查询</div>';
-
-  // Origin info
-  for (var i = 0; i < origins.length; i++) {
-    var oz = origins[i], oloc = originLocs[i], gate = originGates[i];
-    h += '<div class="info-row"><span class="info-label">发货 ' + oz + '</span><span class="info-value">' + (oloc ? oloc.city + ', ' + oloc.state : '-') + ' ' + (gate ? badge(gate, 'zone-port') : '<span style="color:var(--warn)">未匹配</span>') + '</span></div>';
-  }
-
-  // Dest results
+  var h = '<div class="card"><div class="result-title">线路查询</div>';
+  for (var i = 0; i < origins.length; i++) h += '<div class="info-row"><span class="info-label">发货 ' + origins[i] + '</span><span class="info-value">' + (originLocs[i] ? originLocs[i].city + ', ' + originLocs[i].state : '-') + ' ' + (originGates[i] ? badge(originGates[i], 'zone-port') : '<span style="color:var(--warn)">未匹配</span>') + '</span></div>';
   var destLocs = await Promise.all(dests.map(function(z) { return lookupLocation(z); }));
   h += '<div style="margin-top:8px">';
-
   for (var di = 0; di < dests.length; di++) {
-    var dz = dests[di], dloc = destLocs[di];
-    var destZones = findDestZones(dz);
-    var parsed = parseZones(destZones);
-    var uid = 'br-' + di;
-
-    // Find best zone across all origin gates
-    var bestGate = null, bestZone = null;
-    if (originGates.some(function(g) { return g; })) {
-      for (var j = 0; j < parsed.length; j++) {
-        var p = parsed[j];
-        if (originGates.indexOf(p.port) !== -1) {
-          bestGate = p.port; bestZone = p.zone; break;
-        }
-      }
-    }
-
-    h += '<div class="batch-row" onclick="toggleDetail(\'' + uid + '\')">';
-    h += '<span class="batch-zip">' + dz + '</span>';
-    h += '<div class="batch-info">';
-    h += '<div class="batch-city">' + (dloc ? dloc.city + ', ' + dloc.state : '-') + '</div>';
+    var dz = dests[di], destZones = findDestZones(dz), parsed = parseZoneList(destZones), uid = 'br-' + di;
+    h += '<div class="batch-row" onclick="toggleDetail(\'' + uid + '\')"><span class="batch-zip">' + dz + '</span><div class="batch-info"><div class="batch-city">' + locText(destLocs[di]) + '</div>';
     if (parsed.length) {
-      // Show current gate zone + best
-      var matchedGate = originGates.find(function(g) { return g && destZones && destZones[g] && destZones[g] !== '-'; });
-      if (matchedGate) {
-        h += '<div class="batch-best">' + badge(matchedGate, 'zone-port') + ' <span class="batch-zone">' + destZones[matchedGate] + '</span>';
-        if (bestGate && bestGate !== matchedGate) h += ' | 最优 ' + badge(bestGate + ' ' + bestZone, 'zone-ok');
-        h += '</div>';
-      } else {
-        h += '<div class="batch-best">' + badge(parsed[0].port, 'zone-port') + ' <span class="batch-zone" style="color:var(--ok)">' + parsed[0].zone + '</span></div>';
-      }
-    } else {
-      h += '<div class="batch-best" style="color:var(--muted)">未找到分区</div>';
-    }
-    h += '</div>';
-    if (parsed.length > 1) h += '<span style="color:#cbd5e1;font-size:12px">&#9662;</span>';
-    h += '</div>';
-
-    // Detail
+      var mg = originGates.find(function(g) { return g && destZones && destZones[g] && destZones[g] !== '-'; });
+      h += mg ? '<div class="batch-best">' + badge(mg, 'zone-port') + ' <span class="batch-zone">' + destZones[mg] + '</span></div>' : '<div class="batch-best">' + badge(parsed[0].port, 'zone-port') + ' <span class="batch-zone" style="color:var(--ok)">' + parsed[0].zone + '</span></div>';
+    } else h += '<div class="batch-best" style="color:var(--muted)">未找到分区</div>';
+    h += '</div>' + (parsed.length > 1 ? '<span style="color:#cbd5e1;font-size:12px">&#9662;</span>' : '') + '</div>';
     h += '<div class="batch-detail" id="' + uid + '">';
     if (parsed.length) {
       h += '<table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th></th></tr></thead><tbody>';
-      for (var j = 0; j < parsed.length; j++) {
-        var p = parsed[j];
-        var isOrigin = originGates.indexOf(p.port) !== -1;
-        var isBest = (j === 0);
-        h += '<tr' + (isOrigin ? ' class="is-best"' : '') + '>';
-        h += '<td><b>' + p.port + '</b>';
-        if (isOrigin) h += ' ' + badge('当前', 'zone-port');
-        if (isBest && !isOrigin) h += ' ' + badge('最低', 'zone-ok');
-        h += '</td>';
-        h += '<td>' + p.zone + '</td>';
-        h += '<td style="font-size:12px;color:var(--muted)">' + (isOrigin ? '您的口岸' : (isBest ? '最优' : '')) + '</td></tr>';
-      }
+      for (var j = 0; j < parsed.length; j++) { var p = parsed[j], isO = originGates.indexOf(p.port) !== -1; h += '<tr' + (isO ? ' class="is-best"' : '') + '><td><b>' + p.port + '</b>' + (isO ? ' ' + badge('当前', 'zone-port') : (j === 0 ? ' ' + badge('最低', 'zone-ok') : '')) + '</td><td>' + p.zone + '</td><td style="font-size:12px;color:var(--muted)">' + (isO ? '您的口岸' : (j === 0 ? '最优' : '')) + '</td></tr>'; }
       h += '</tbody></table>';
     }
     h += '</div>';
@@ -400,46 +737,18 @@ async function renderRoutes(origins, dests) {
 }
 
 async function renderSingleRoute(originZip, destZip, gate, originLoc) {
-  var destLoc = await lookupLocation(destZip);
-  var destZones = findDestZones(destZip);
-  var parsed = parseZones(destZones);
-
+  var destLoc = await lookupLocation(destZip), destZones = findDestZones(destZip), parsed = parseZoneList(destZones);
   var h = '<div class="card"><div class="result-title">线路查询</div>';
-  h += '<div class="route-box">';
-  h += '<div class="route-side"><div class="route-label">发货地</div><div class="route-zip">' + originZip + '</div><div class="route-city">' + (originLoc ? originLoc.city : '-') + (gate ? ' (' + gate + ')' : '') + '</div></div>';
-  h += '<div class="route-arrow">→</div>';
-  h += '<div class="route-side"><div class="route-label">收货地</div><div class="route-zip">' + destZip + '</div><div class="route-city">' + (destLoc ? destLoc.city : '-') + '</div></div>';
-  h += '</div>';
-
-  if (!gate) {
-    h += '<div style="padding:12px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">发货邮编未匹配到口岸，无法查分区</div>';
-  } else if (destZones && destZones[gate] && destZones[gate] !== '-') {
-    var currentZone = destZones[gate];
-    h += '<div class="zone-result">';
-    h += '<div class="zone-route">' + gate + ' → ' + destZip + '</div>';
-    h += '<div class="zone-num">' + currentZone + '</div>';
-    h += '<div class="zone-note">从 ' + gate + ' 发货的分区</div></div>';
-
+  h += '<div class="route-box"><div class="route-side"><div class="route-label">发货地</div><div class="route-zip">' + originZip + '</div><div class="route-city">' + (originLoc ? originLoc.city : '-') + (gate ? ' (' + gate + ')' : '') + '</div></div><div class="route-arrow">→</div><div class="route-side"><div class="route-label">收货地</div><div class="route-zip">' + destZip + '</div><div class="route-city">' + (destLoc ? destLoc.city : '-') + '</div></div></div>';
+  if (!gate) h += '<div style="padding:12px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">发货邮编未匹配到口岸，无法查分区</div>';
+  else if (destZones && destZones[gate] && destZones[gate] !== '-') {
+    h += '<div class="zone-result"><div class="zone-route">' + gate + ' → ' + destZip + '</div><div class="zone-num">' + destZones[gate] + '</div><div class="zone-note">从 ' + gate + ' 发货的分区</div></div>';
     if (parsed.length > 1) {
-      h += '<div style="margin-top:12px"><div class="section-label">各口岸分区对比</div>';
-      h += '<table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th></th></tr></thead><tbody>';
-      for (var i = 0; i < parsed.length; i++) {
-        var p = parsed[i];
-        var isCurrent = (p.port === gate);
-        h += '<tr' + (isCurrent ? ' class="is-best"' : '') + '>';
-        h += '<td><b>' + p.port + '</b>';
-        if (isCurrent) h += ' ' + badge('当前', 'zone-port');
-        if (i === 0 && !isCurrent) h += ' ' + badge('最低', 'zone-ok');
-        h += '</td>';
-        h += '<td>' + p.zone + '</td>';
-        h += '<td style="font-size:12px;color:var(--muted)">' + (isCurrent ? '您的口岸' : (i === 0 ? '最优选择' : '')) + '</td></tr>';
-      }
-      h += '</tbody></table>';
-      h += '<div style="font-size:11px;color:var(--muted);margin-top:6px">分区由发货口岸决定，需从对应口岸附近发货才能享受对应分区价格</div></div>';
+      h += '<div style="margin-top:12px"><div class="section-label">各口岸分区对比</div><table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th></th></tr></thead><tbody>';
+      for (var i = 0; i < parsed.length; i++) { var p = parsed[i], isC = p.port === gate; h += '<tr' + (isC ? ' class="is-best"' : '') + '><td><b>' + p.port + '</b>' + (isC ? ' ' + badge('当前', 'zone-port') : (i === 0 ? ' ' + badge('最低', 'zone-ok') : '')) + '</td><td>' + p.zone + '</td><td style="font-size:12px;color:var(--muted)">' + (isC ? '您的口岸' : (i === 0 ? '最优选择' : '')) + '</td></tr>'; }
+      h += '</tbody></table><div style="font-size:11px;color:var(--muted);margin-top:6px">分区由发货口岸决定，需从对应口岸附近发货才能享受对应分区价格</div></div>';
     }
-  } else if (gate) {
-    h += '<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;color:#991b1b">邮编 <b>' + destZip + '</b> 未找到从 ' + gate + ' 出发的分区数据</div>';
-  }
+  } else if (gate) h += '<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;color:#991b1b">邮编 <b>' + destZip + '</b> 未找到从 ' + gate + ' 出发的分区数据</div>';
   h += '</div>';
   return h;
 }

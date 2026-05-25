@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>邮编查询</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f5f6fa;--card:#fff;--primary:#4f46e5;--primary-soft:#eef2ff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;--ok:#16a34a;--warn:#d97706;--err:#dc2626}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-tap-highlight-color:transparent;font-size:15px;line-height:1.5}
+
+.header{background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px 16px 24px;color:#fff;position:sticky;top:0;z-index:10}
+.header h1{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.header p{font-size:13px;opacity:.8;margin-top:2px}
+
+.main{padding:0 12px 80px;margin-top:-12px}
+
+.card{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:16px;margin-bottom:12px}
+
+.section-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.section-label .dot{width:6px;height:6px;border-radius:50%;background:var(--primary)}
+
+.input-row{display:flex;gap:8px;margin-bottom:10px}
+.input-group{flex:1}
+.input-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.input-group input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:10px;font-size:17px;font-variant-numeric:tabular-nums;outline:none;transition:border .15s}
+.input-group input:focus{border-color:var(--primary)}
+
+.btn{display:flex;align-items:center;justify-content:center;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:active{background:#4338ca;transform:scale(.98)}
+
+.tabs{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;transition:all .15s}
+.tab.active{background:var(--primary);color:#fff}
+.tab:not(.active){color:var(--muted)}
+
+/* Results */
+.result-group{margin-bottom:16px}
+.result-title{font-size:14px;font-weight:700;padding:8px 0 6px;display:flex;align-items:center;gap:8px}
+.result-title .icon{font-size:16px}
+
+.zone-badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.zone-ok{background:#dcfce7;color:#166534}
+.zone-warn{background:#fef3c7;color:#92400e}
+.zone-port{background:#ede9fe;color:#6d28d9}
+.zone-best{background:#166534;color:#fff}
+.zone-err{background:#fef2f2;color:#991b1b}
+
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px}
+.info-row:last-child{border:none}
+.info-label{color:var(--muted);font-size:13px}
+.info-value{font-weight:600;text-align:right}
+
+.best-card{padding:14px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;margin:8px 0}
+.best-label{font-size:11px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:.04em}
+.best-value{font-size:20px;font-weight:850;color:#166534;margin-top:2px}
+.best-note{font-size:13px;color:#15803d;margin-top:4px}
+
+.port-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:14px}
+.port-row:last-child{border:none}
+.port-row.is-best{background:#ecfdf5;border-radius:8px}
+.port-name{font-weight:700;min-width:44px}
+.port-zone{flex:1;font-weight:600}
+.port-hint{font-size:12px;color:var(--muted)}
+
+.empty{padding:20px;text-align:center;color:var(--muted);font-size:14px}
+
+.route-box{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px;margin:8px 0;background:#f8fafc;border-radius:12px}
+.route-side{text-align:center}
+.route-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase}
+.route-zip{font-size:20px;font-weight:850}
+.route-city{font-size:12px;color:var(--muted)}
+.route-arrow{font-size:20px;color:#cbd5e1}
+
+.zone-result{text-align:center;padding:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;margin-top:8px}
+.zone-route{font-size:13px;font-weight:600;color:#0c4a6e}
+.zone-num{font-size:28px;font-weight:850;color:#0284c7;margin-top:2px}
+.zone-note{font-size:12px;color:#64748b;margin-top:4px}
+
+.loading{display:none;text-align:center;padding:40px;color:var(--muted);font-size:14px}
+.loading.show{display:block}
+.spinner{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--primary);border-radius:50%;animation:spin .6s linear infinite;margin:0 auto 8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.copy-btn{padding:6px 12px;font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer;color:var(--muted);transition:all .15s}
+.copy-btn:active{background:#f1f5f9}
+
+.port-table{width:100%;border-collapse:collapse;font-size:13px}
+.port-table th{text-align:left;padding:8px 10px;background:#f7f9fb;border-bottom:2px solid #e2e8f0;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase}
+.port-table td{padding:10px;border-bottom:1px solid #f1f5f9}
+.port-table tr:last-child td{border:none}
+.port-table tr.is-best td{background:#ecfdf5}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>邮编查询工具</h1>
+  <p>输入邮编查取件口岸 / 分区</p>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="input-row">
+      <div class="input-group">
+        <label>发货邮编</label>
+        <input id="origin" type="text" inputmode="numeric" placeholder="如 90058" autocomplete="off">
+      </div>
+      <div class="input-group">
+        <label>收货邮编</label>
+        <input id="dest" type="text" inputmode="numeric" placeholder="如 10001" autocomplete="off">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="doLookup()" id="queryBtn">查询</button>
+  </div>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    查询中...
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+var locCache = {};
+var US_STATES_CN = {
+  'AL':'阿拉巴马','AK':'阿拉斯加','AZ':'亚利桑那','AR':'阿肯色','CA':'加利福尼亚','CO':'科罗拉多','CT':'康涅狄格','DE':'特拉华','FL':'佛罗里达','GA':'佐治亚','HI':'夏威夷','ID':'爱达荷','IL':'伊利诺伊','IN':'印第安纳','IA':'爱荷华','KS':'堪萨斯','KY':'肯塔基','LA':'路易斯安那','ME':'缅因','MD':'马里兰','MA':'马萨诸塞','MI':'密歇根','MN':'明尼苏达','MS':'密西西比','MO':'密苏里','MT':'蒙大拿','NE':'内布拉斯加','NV':'内华达','NH':'新罕布什尔','NJ':'新泽西','NM':'新墨西哥','NY':'纽约','NC':'北卡罗来纳','ND':'北达科他','OH':'俄亥俄','OK':'俄克拉荷马','OR':'俄勒冈','PA':'宾夕法尼亚','RI':'罗德岛','SC':'南卡罗来纳','SD':'南达科他','TN':'田纳西','TX':'得克萨斯','UT':'犹他','VT':'佛蒙特','VA':'弗吉尼亚','WA':'华盛顿','WV':'西弗吉尼亚','WI':'威斯康星','WY':'怀俄明','DC':'华盛顿特区','PR':'波多黎各'
+};
+
+function findGate(zip) {
+  var data = ZIP_DATA;
+  var pz = data.pz;
+  for (var gate in pz) {
+    if (pz[gate].indexOf(zip) !== -1) return gate;
+  }
+  return null;
+}
+
+function findDestZones(zip) {
+  var data = ZIP_DATA;
+  if (data.dx && data.dx[zip]) return data.dx[zip];
+  var p3 = zip.substring(0, 3);
+  if (data.dz3[p3]) return data.dz3[p3];
+  return null;
+}
+
+function parseZones(zones) {
+  if (!zones) return [];
+  var result = [];
+  for (var port in zones) {
+    var z = zones[port];
+    if (z && z !== '-') {
+      var num = parseInt(z.replace('Zone ', ''));
+      result.push({ port: port, zone: z, num: num });
+    }
+  }
+  result.sort(function(a, b) { return a.num - b.num; });
+  return result;
+}
+
+function zoneNum(z) {
+  if (!z || z === '-') return 99;
+  return parseInt(z.replace('Zone ', '')) || 99;
+}
+
+async function lookupLocation(zip) {
+  if (locCache[zip]) return locCache[zip];
+  try {
+    var resp = await fetch('https://api.zippopotam.us/us/' + zip);
+    if (!resp.ok) return null;
+    var data = await resp.json();
+    var p = data.places && data.places[0];
+    if (!p) return null;
+    var state = p['state abbreviation'];
+    var loc = {
+      city: p['place name'],
+      state: state,
+      stateFull: p.state,
+      stateCn: US_STATES_CN[state] || '',
+      lat: parseFloat(p.latitude),
+      lng: parseFloat(p.longitude)
+    };
+    locCache[zip] = loc;
+    return loc;
+  } catch(e) {
+    return null;
+  }
+}
+
+function renderBadge(text, cls) {
+  return '<span class="zone-badge ' + cls + '">' + text + '</span>';
+}
+
+async function doLookup() {
+  var origin = document.getElementById('origin').value.trim();
+  var dest = document.getElementById('dest').value.trim();
+  if (!origin && !dest) return;
+
+  var results = document.getElementById('results');
+  var loading = document.getElementById('loading');
+  results.innerHTML = '';
+  loading.classList.add('show');
+
+  try {
+    var html = '';
+
+    if (origin) {
+      html += await renderOrigin(origin, dest);
+    }
+    if (dest && !origin) {
+      html += await renderDestOnly(dest);
+    }
+    if (origin && dest) {
+      html += await renderRoute(origin, dest);
+    }
+
+    results.innerHTML = html;
+  } finally {
+    loading.classList.remove('show');
+  }
+}
+
+async function renderOrigin(zip, destZip) {
+  var gate = findGate(zip);
+  var loc = await lookupLocation(zip);
+  var locText = loc ? (loc.city + ', ' + loc.state) : '-';
+
+  var h = '<div class="card result-group">';
+  h += '<div class="result-title"><span class="icon">📍</span> 发货邮编 ' + zip + '</div>';
+
+  h += '<div class="info-row"><span class="info-label">位置</span><span class="info-value">' + locText + (loc && loc.stateCn ? ' (' + loc.stateCn + ')' : '') + '</span></div>';
+  h += '<div class="info-row"><span class="info-label">注入口岸</span><span class="info-value">' + (gate ? renderBadge(gate, 'zone-port') : '<span style="color:var(--warn)">未匹配</span>') + '</span></div>';
+  h += '<div class="info-row"><span class="info-label">揽收范围</span><span class="info-value">' + (gate ? renderBadge('在揽收范围内', 'zone-ok') : renderBadge('需确认', 'zone-warn')) + '</span></div>';
+
+  if (!gate) {
+    // Try 3-digit prefix zone lookup
+    var zones = findDestZones(zip);
+    if (zones) {
+      var parsed = parseZones(zones);
+      if (parsed.length > 0) {
+        var best = parsed[0];
+        h += '<div style="margin-top:10px;padding:10px;background:#fefce8;border-radius:8px;font-size:13px">';
+        h += '<div style="font-weight:700;color:#92400e">按邮编前3位估算</div>';
+        h += '<div style="margin-top:4px;color:#78350f">该区域距 <b>' + best.port + '</b> 口岸最近（' + best.zone + '）</div>';
+        h += '</div>';
+      }
+    }
+  }
+
+  h += '</div>';
+  return h;
+}
+
+async function renderDestOnly(zip) {
+  var loc = await lookupLocation(zip);
+  var zones = findDestZones(zip);
+  var parsed = parseZones(zones);
+
+  var h = '<div class="card result-group">';
+  h += '<div class="result-title"><span class="icon">📦</span> 收货邮编 ' + zip + '</div>';
+
+  var locText = loc ? (loc.city + ', ' + loc.state + (loc.stateCn ? ' (' + loc.stateCn + ')' : '')) : '-';
+  h += '<div class="info-row"><span class="info-label">位置</span><span class="info-value">' + locText + '</span></div>';
+
+  if (parsed.length === 0) {
+    h += '<div class="empty">未找到分区数据</div>';
+    h += '</div>';
+    return h;
+  }
+
+  var best = parsed[0];
+  h += '<div class="best-card">';
+  h += '<div class="best-label">推荐发货口岸</div>';
+  h += '<div class="best-value">' + best.port + '</div>';
+  h += '<div class="best-note">从 ' + best.port + ' 发货是 ' + best.zone + '，Zone 最低</div>';
+  h += '</div>';
+
+  h += '<table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th>建议</th></tr></thead><tbody>';
+  for (var i = 0; i < parsed.length; i++) {
+    var p = parsed[i];
+    var isBest = (i === 0);
+    h += '<tr' + (isBest ? ' class="is-best"' : '') + '>';
+    h += '<td><b>' + p.port + '</b>' + (isBest ? ' ' + renderBadge('推荐', 'zone-ok') : '') + '</td>';
+    h += '<td>' + p.zone + '</td>';
+    h += '<td>' + (isBest ? '<span style="color:var(--ok);font-weight:600">推荐</span>' : '<span style="color:var(--muted)">可发</span>') + '</td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  h += '</div>';
+  return h;
+}
+
+async function renderRoute(originZip, destZip) {
+  var gate = findGate(originZip);
+  var destZones = findDestZones(destZip);
+  var originLoc = await lookupLocation(originZip);
+  var destLoc = await lookupLocation(destZip);
+  var parsed = parseZones(destZones);
+
+  var h = '<div class="card result-group">';
+  h += '<div class="result-title"><span class="icon">🚚</span> 线路查询</div>';
+
+  // Route flow
+  h += '<div class="route-box">';
+  h += '<div class="route-side"><div class="route-label">发货地</div><div class="route-zip">' + originZip + '</div><div class="route-city">' + (originLoc ? originLoc.city : '-') + (gate ? ' (' + gate + ')' : '') + '</div></div>';
+  h += '<div class="route-arrow">→</div>';
+  h += '<div class="route-side"><div class="route-label">收货地</div><div class="route-zip">' + destZip + '</div><div class="route-city">' + (destLoc ? destLoc.city : '-') + '</div></div>';
+  h += '</div>';
+
+  if (!gate) {
+    h += '<div style="padding:12px;background:#fef2f2;border-radius:10px;color:#991b1b;font-size:13px;text-align:center">发货邮编未匹配到口岸，无法查分区</div>';
+  } else if (destZones && destZones[gate] && destZones[gate] !== '-') {
+    var currentZone = destZones[gate];
+    var bestPort = null, bestZone = null;
+    for (var i = 0; i < parsed.length; i++) {
+      if (parsed[i].port !== gate) { bestPort = parsed[i].port; bestZone = parsed[i].zone; break; }
+    }
+
+    h += '<div class="zone-result">';
+    h += '<div class="zone-route">' + gate + ' → ' + destZip + '</div>';
+    h += '<div class="zone-num">' + currentZone + '</div>';
+    h += '<div class="zone-note">从 ' + gate + ' 发货的分区</div>';
+    h += '</div>';
+
+    // Show all ports comparison
+    if (parsed.length > 1) {
+      h += '<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">各口岸分区对比</div>';
+      h += '<table class="port-table"><thead><tr><th>口岸</th><th>分区</th><th></th></tr></thead><tbody>';
+      for (var i = 0; i < parsed.length; i++) {
+        var p = parsed[i];
+        var isCurrent = (p.port === gate);
+        var isBest = (i === 0 && !isCurrent) || (i === 0);
+        h += '<tr' + (isCurrent ? ' class="is-best"' : '') + '>';
+        h += '<td><b>' + p.port + '</b>';
+        if (isCurrent) h += ' ' + renderBadge('当前', 'zone-port');
+        if (isBest && !isCurrent) h += ' ' + renderBadge('最低', 'zone-ok');
+        h += '</td>';
+        h += '<td>' + p.zone + '</td>';
+        h += '<td style="font-size:12px;color:var(--muted)">' + (isCurrent ? '您的口岸' : (isBest ? '最优选择' : '')) + '</td>';
+        h += '</tr>';
+      }
+      h += '</tbody></table></div>';
+      h += '<div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6">分区由发货口岸决定，需从对应口岸附近发货才能享受对应分区价格</div>';
+    }
+  } else if (gate) {
+    h += '<div style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;color:#991b1b">邮编 <b>' + destZip + '</b> 未找到从 ' + gate + ' 出发的分区数据</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+// Enter key triggers lookup
+document.getElementById('origin').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLookup(); });
+document.getElementById('dest').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLookup(); });
+</script>
+</body>
+</html>
